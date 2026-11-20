@@ -1,0 +1,13 @@
+{
+  "rules": {
+    "players": {
+      ".read": true,
+      ".indexOn": ["pts", "lastSeen"],
+      "$id": {
+        ".write": true,
+        ".validate": "newData.hasChildren(['name','pts','lastSeen']) && newData.child('name').isString() && newData.child('name').val().length <= 16 && newData.child('pts').isNumber() && newData.child('pts').val() >= 0 && newData.child('pts').val() <= 1000000 && newData.child('lastSeen').isNumber() && $id.length <= 30",
+        "$other": { ".validate": true }
+      }
+    }
+  }
+}

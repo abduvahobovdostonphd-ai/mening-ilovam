@@ -2,6 +2,7 @@
 <html lang="uz">
 <head>
 <meta charset="utf-8">
+<script src="config.js"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#7ad7f0">
 <title>Karra Jadval</title>
@@ -221,10 +222,6 @@ h1{margin:0;text-align:center;line-height:1.05}
 .fg b{font-size:14px}
 .rowBtns{margin:8px 2px}
 
-.mic{width:100%;padding:12px;font-size:22px;margin:10px 0 2px;flex:none}
-.mic.listening{animation:pulse .8s infinite}
-@keyframes pulse{50%{transform:scale(1.04)}}
-.micMsg{text-align:center;font-size:18px;min-height:24px;margin-top:6px}
 .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:rgba(45,53,97,.92);color:#fff;padding:12px 18px;border-radius:22px;font-size:17px;z-index:300;max-width:88%;text-align:center;animation:pop .25s}
 
 .stages{display:grid;gap:14px;margin:12px 2px}
@@ -249,6 +246,7 @@ h1{margin:0;text-align:center;line-height:1.05}
 #lkTime{font-size:72px;letter-spacing:2px}
 #lkTip{font-size:22px;max-width:340px;line-height:1.25;opacity:.95}
 #lkBtn{width:86%;padding:16px;font-size:26px;display:none}
+.trackBtn{display:none;border:0;border-radius:18px;background:rgba(255,255,255,.75);color:var(--ink);font-family:inherit;font-weight:800;font-size:15px;padding:6px 14px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -277,6 +275,7 @@ h1{margin:0;text-align:center;line-height:1.05}
       <button class="bigbtn purple" data-go="champ"><span class="ic">🏅</span>Chempionat</button>
     </div>
     <button class="bigbtn pink boardBtn" data-go="board">🌍 Eng kuchlilar reytingi</button>
+    <div style="text-align:center"><button id="trackBtn" class="trackBtn"></button></div>
   </div>
 </section>
 
@@ -326,8 +325,6 @@ h1{margin:0;text-align:center;line-height:1.05}
   <div class="qinfo" id="qInfo"></div>
   <div class="qbox" id="qBox"></div>
   <div class="answers" id="answers"></div>
-  <button class="bigbtn pink mic" id="micBtn">🎤 Ovoz bilan ayt</button>
-  <div class="micMsg" id="micMsg"></div>
 </section>
 
 <!-- CHAMPIONSHIP -->
@@ -347,8 +344,6 @@ h1{margin:0;text-align:center;line-height:1.05}
   <div class="qbox" id="cBox" style="margin-top:10px;padding:14px 10px"></div>
   <div class="ansBox" id="cAns">?</div>
   <div class="numpad" id="numpad"></div>
-  <button class="bigbtn pink mic" id="cMic">🎤 Ovoz bilan ayt</button>
-  <div class="micMsg" id="cMsg"></div>
 </section>
 
 <!-- RESULT -->
@@ -365,7 +360,8 @@ h1{margin:0;text-align:center;line-height:1.05}
 <!-- BOARD -->
 <section id="s-board" class="screen" data-music="1">
   <div class="head"><button class="round back">⬅️</button><h2>🌍 Reyting</h2><div class="sp"></div></div>
-  <p class="note">Musobaqa va chempionatda eng ko'p ball yig'ganlar.<br>(Bu qurilmadagi barcha o'quvchilar ro'yxati)</p>
+  <div class="seg" id="bseg"><button data-v="online" class="on">🌍 Onlayn</button><button data-v="local">📱 Shu telefon</button></div>
+  <div id="onBox"></div>
   <div class="lb" id="lbBody"></div>
 </section>
 
@@ -400,9 +396,9 @@ var TRACKS=[
  {st:.25,lead:'triangle',v:.55,d:.26,
   M:[76,79,84,79,76,79,84,0, 77,81,84,81,77,81,84,0, 79,83,86,83,79,83,86,0, 84,79,76,79,72,0,72,0],
   B:[48,0,55,0,53,0,57,0,55,0,59,0,48,0,55,0]},
- {st:.22,lead:'square',v:.2,d:.18,
-  M:[74,0,71,74,79,0,74,0, 72,0,69,72,76,0,72,0, 71,74,78,74,71,0,67,0, 69,72,76,72,74,0,0,0],
-  B:[43,0,43,0,48,0,48,0,50,0,50,0,43,0,43,0]},
+ {st:.28,lead:'sine',v:.5,d:.4,
+  M:[79,0,76,0,72,0,76,0, 74,0,77,0,81,0,77,0, 76,0,72,0,67,0,72,0, 74,0,76,0,72,0,0,0],
+  B:[48,0,0,0,53,0,0,0,48,0,0,0,55,0,0,0]},
  {st:.26,lead:'triangle',v:.5,d:.3,
   M:[77,0,77,72,74,0,74,70, 72,0,72,69,70,0,67,0, 77,0,81,77,74,0,72,70, 69,72,77,72,69,0,65,0],
   B:[41,0,48,0,46,0,50,0,45,0,48,0,46,0,41,0]},
@@ -413,6 +409,7 @@ var TRACKS=[
   M:[84,0,79,0,76,0,79,0, 81,0,76,0,74,0,0,0, 84,0,81,0,79,0,76,0, 74,0,76,0,72,0,0,0],
   B:[48,0,0,0,45,0,0,0,53,0,0,0,55,0,0,0]}
 ];
+var TRACK_NAMES=['Quvnoq kun','Bulutlar','Marsh','Sakrash','Yomg\'ir'];
 var Snd={ctx:null,fx:null,mbus:null,timer:null,step:0,nextT:0,on:false,trk:0,loops:0,last:-1,
   init:function(){
     if(!this.ctx){
@@ -454,7 +451,7 @@ var Snd={ctx:null,fx:null,mbus:null,timer:null,step:0,nextT:0,on:false,trk:0,loo
       this.nextT+=T.st;this.step=s+1;
       if(this.step>=32){
         this.step=0;this.loops++;
-        if(this.loops>=2){this.loops=0;this.trk=this.pickTrack();T=TRACKS[this.trk]}
+        if(this.loops>=2){this.loops=0;this.trk=this.pickTrack();T=TRACKS[this.trk];updTrackLabel()}
       }
     }
   },
@@ -484,9 +481,19 @@ function go(id){
   var el=$('#s-'+id);if(el)el.scrollTop=0;
   updateMusic();
 }
+function updTrackLabel(){
+  var b=$('#trackBtn');if(!b)return;
+  b.style.display=(Snd.on&&scr==='home')?'inline-block':'none';
+  if(Snd.on)b.textContent='🎵 '+TRACK_NAMES[Snd.trk]+'  ⏭';
+}
+$('#trackBtn').addEventListener('click',function(){
+  if(!Snd.on)return;
+  Snd.trk=Snd.pickTrack();Snd.step=0;Snd.loops=0;updTrackLabel();
+});
 function updateMusic(){
   var el=$('#s-'+scr),want=el&&el.getAttribute('data-music')==='1';
   if(want&&!DB.muted)Snd.startMusic();else Snd.stopMusic();
+  updTrackLabel();
 }
 function backTarget(){
   switch(scr){
@@ -534,7 +541,7 @@ function openNew(required){
   var av=AV[rnd(AV.length)],age=7;
   var box=$('#modalBox');
   box.innerHTML='<h3>'+(required?'Salom! Tanishamiz 👋':'Yangi o\'quvchi ➕')+'</h3>'+
-    '<label>Ismingni yoz:</label><input id="pName" maxlength="16" autocomplete="off" placeholder="Ismi">'+
+    '<label>Ismingni yoz (familiyasiz):</label><input id="pName" maxlength="16" autocomplete="off" placeholder="Ismi">'+
     '<label>Yoshing nechida?</label><div class="ages" id="pAges"></div>'+
     '<label>Rasmingni tanla:</label><div class="avs" id="pAvs"></div>'+
     '<div class="err" id="pErr"></div>'+
@@ -750,7 +757,6 @@ function startGame(cfg){
 }
 function tick(){
   if(!G||G.over)return;
-  if(Voice.busy&&G.end)G.end+=200;
   var left=Math.max(0,G.end-Date.now());
   $('#gProg i').style.width=(left/(G.secs*1000)*100)+'%';
   $('#gProg').classList.toggle('low',left<10000);
@@ -792,7 +798,7 @@ function nextQ(){
   if(!G||G.over)return;
   if(G.mode!=='contest'&&G.q>=G.total){finish();return}
   var q=pickQ(),flip=(G.mode!=='learn')&&rnd(2)===1;
-  $('#micMsg').textContent='';G.cur=q;G.last=q.a+'x'+q.b;G.used[G.last]=1;G.locked=false;
+  G.cur=q;G.last=q.a+'x'+q.b;G.used[G.last]=1;G.locked=false;
   var x=flip?q.b:q.a,y=flip?q.a:q.b;
   $('#qBox').innerHTML=x+' × '+y+' = ?';
   if(G.mode==='contest'){/* qInfo shows time */}
@@ -834,7 +840,7 @@ function finish(){
     var L=p.learn[G.n]||(p.learn[G.n]={sessions:0,best:0});
     L.sessions++;if(G.correct>L.best)L.best=G.correct;
   }
-  save();showResult(s);
+  save();onPush(p);showResult(s);
 }
 function confetti(){
   var em=['🎉','⭐','✨','🎈','🌟','🍭'];
@@ -942,13 +948,126 @@ function boardData(){
     return {p:p,pts:pts,best:best,cnt:cnt};
   }).filter(function(x){return x.cnt>0}).sort(function(a,b){return b.pts-a.pts||b.best-a.best});
 }
-function openBoard(){
+/* ---------- reyting: shu telefon + onlayn ---------- */
+var bTab='online';
+function openBoard(){bTab=onReady()?'online':'local';renderBoard();go('board')}
+function renderBoard(){
+  $$('#bseg button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-v')===bTab)});
+  if(bTab==='local'){
+    $('#onBox').innerHTML='<p class="note">Bu telefondagi o\'quvchilar. Musobaqa va chempionat ballari.</p>';
+    renderLocal();
+  }else renderOnline();
+}
+$$('#bseg button').forEach(function(b){b.addEventListener('click',function(){bTab=b.getAttribute('data-v');renderBoard()})});
+function renderLocal(){
   var d=boardData(),me=cur(),med=['🥇','🥈','🥉'];
   if(!d.length){$('#lbBody').innerHTML='<div class="sec tip" style="text-align:center"><h3>🏆 Hali musobaqa o\'ynalmagan</h3><p style="margin:0;font-size:17px">Birinchi bo\'lib «Musobaqa» da ishtirok et va reytingga kir!</p></div>'}
   else $('#lbBody').innerHTML=d.map(function(x,i){
     return '<div class="lbrow'+(me&&x.p.id===me.id?' me':'')+'"><div class="rk">'+(med[i]||(i+1))+'</div><div class="av">'+x.p.avatar+'</div><div class="nm">'+esc(x.p.name)+'<small>'+x.p.age+' yosh · '+x.cnt+' ta o\'yin · eng yaxshi '+x.best+'</small></div><div class="pt">'+x.pts+'</div></div>';
   }).join('');
-  go('board');
+}
+
+/* Onlayn qism: Firebase Realtime Database (REST). Manzil www/config.js da */
+function onURL(){return String(window.KARRA_DB_URL||'').replace(/\/+$/,'')}
+function onReady(){return /^https:\/\/[^\s]+$/.test(onURL())||/^http:\/\/(localhost|127\.0\.0\.1)[:\/]/.test(onURL())}
+function onFetch(path,opt){
+  var c=(typeof AbortController!=='undefined')?new AbortController():null,t=null;
+  opt=opt||{};
+  if(c){opt.signal=c.signal;t=setTimeout(function(){c.abort()},9000)}
+  return fetch(onURL()+path,opt).then(function(r){
+    if(t)clearTimeout(t);
+    if(!r.ok)throw new Error('http '+r.status);
+    return r.json();
+  },function(e){if(t)clearTimeout(t);throw e});
+}
+function myRecord(p){
+  var pts=0,games=0,C=0,W=0,stage=0;
+  p.sessions.forEach(function(s){if(s.type==='contest'||s.type==='champ'){pts+=s.score;games++}});
+  Object.keys(p.facts).forEach(function(k){C+=p.facts[k].c;W+=p.facts[k].w});
+  var c=p.champ;
+  if(c)STAGES.forEach(function(s){if(c.st[s.id]&&c.st[s.id].passed&&s.id>stage)stage=s.id});
+  /* faqat ism, rasm va ballar yuboriladi: yosh, familiya, joylashuv yuborilmaydi */
+  return {name:String(p.name).slice(0,16),av:p.avatar,pts:pts,games:games,acc:(C+W)?Math.round(C/(C+W)*100):0,stage:stage,medal:(c&&c.medal)||'',lastSeen:Date.now()};
+}
+function onPush(p){
+  if(!onReady()||!p||!p.online||!p.online.on)return;
+  onFetch('/players/'+p.online.id+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(myRecord(p))}).catch(function(){});
+}
+setInterval(function(){   /* "hozir o'ynayapti" belgisi: har daqiqada */
+  var p=cur();
+  if(p&&p.online&&p.online.on&&!document.hidden&&!lockOn())onPush(p);
+},60000);
+function newOnId(){var s='k';for(var i=0;i<14;i++)s+=Math.floor(Math.random()*36).toString(36);return s+Date.now().toString(36)}
+function parentGate(title,text,okFn){
+  var a=11+rnd(9),b=12+rnd(8);
+  var box=$('#modalBox');modalRequired=false;
+  box.innerHTML='<h3>'+title+'</h3><p style="font-size:17px;line-height:1.3;margin:0 0 6px">'+text+'</p>'+
+    '<label>Ota-ona uchun savol: '+a+' × '+b+' = ?</label><input id="gAns" inputmode="numeric" maxlength="4" autocomplete="off">'+
+    '<div class="err" id="gErr"></div><button class="bigbtn green" id="gOk">Tasdiqlayman</button>'+
+    '<button class="bigbtn red" id="gNo" style="font-size:20px;padding:10px">Bekor qilish</button>';
+  $('#gOk').onclick=function(){
+    if(parseInt($('#gAns').value,10)!==a*b){$('#gErr').textContent='Javob noto\'g\'ri. Bu savol faqat kattalar uchun.';return}
+    closeModal();okFn();
+  };
+  $('#gNo').onclick=closeModal;
+  $('#modal').classList.add('on');
+}
+function optInCard(){
+  $('#onBox').innerHTML='<div class="sec"><h3>🌍 Onlayn reytingga qo\'shilish</h3>'+
+    '<p style="margin:0 0 10px;font-size:16px;line-height:1.35">Ota-onalar uchun: boshqa o\'yinchilar bilan bellashish uchun faqat <b>ism, rasm va ballar</b> internetga yuboriladi. Yosh, familiya va joylashuv yuborilmaydi. Istalgan vaqtda chiqib ketish mumkin.</p>'+
+    '<button class="bigbtn green" id="optBtn" style="width:100%;padding:14px;font-size:20px">Ota-ona: ruxsat beraman</button></div>';
+  $('#lbBody').innerHTML='';
+  $('#optBtn').onclick=function(){
+    parentGate('Ota-ona tasdig\'i','«'+esc(cur().name)+'» ismi, rasmi va ballari onlayn reytingda ko\'rinishiga rozimisiz?',function(){
+      var p=cur();p.online={on:true,id:p.online&&p.online.id?p.online.id:newOnId()};save();onPush(p);renderOnline();
+    });
+  };
+}
+function renderOnline(){
+  var box=$('#onBox'),lb=$('#lbBody'),p=cur();
+  lb.innerHTML='';
+  if(!onReady()){
+    box.innerHTML='<div class="sec tip"><h3>🌍 Onlayn reyting hali ulanmagan</h3><p style="margin:0;font-size:16px">Ilova yaratuvchisi serverni ulagach, boshqa o\'yinchilar bilan bellasha olasiz. Hozircha «📱 Shu telefon» bo\'limidan foydalaning.</p></div>';
+    return;
+  }
+  if(!p.online||!p.online.on){optInCard();return}
+  box.innerHTML='<p class="note">⏳ Yuklanmoqda…</p>';
+  onPush(p);
+  var since=Date.now()-3*60*1000;
+  Promise.all([
+    onFetch('/players.json?orderBy=%22pts%22&limitToLast=50'),
+    onFetch('/players.json?orderBy=%22lastSeen%22&startAt='+since+'&limitToLast=100')
+  ]).then(function(res){
+    if(scr!=='board'||bTab!=='online')return;
+    var all=res[0]||{},live=res[1]||{};
+    var arr=Object.keys(all).map(function(id){var r=all[id];r.id=id;return r}).filter(function(r){return r&&typeof r.pts==='number'})
+      .sort(function(a,b){return b.pts-a.pts});
+    var liveArr=Object.keys(live).map(function(id){return live[id]}).filter(function(r){return r&&r.name});
+    var med=['🥇','🥈','🥉'],medalIc={gold:'🥇',silver:'🥈',bronze:'🥉'};
+    var names=liveArr.slice(0,8).map(function(r){return esc(r.name)}).join(', ');
+    box.innerHTML='<div class="sec" style="text-align:center;padding:10px"><div style="font-size:20px">🟢 Hozir o\'ynayotganlar: <b>'+liveArr.length+'</b></div>'+
+      (names?'<div style="font-size:14px;opacity:.8;margin-top:2px">'+names+(liveArr.length>8?' …':'')+'</div>':'')+'</div>';
+    var h='';
+    if(!arr.length)h='<div class="sec tip" style="text-align:center"><h3>Hali hech kim o\'ynamagan</h3><p style="margin:0">Birinchi bo\'lib musobaqa yoki chempionatda ishtirok et!</p></div>';
+    arr.forEach(function(r,i){
+      var isLive=r.lastSeen>=since;
+      h+='<div class="lbrow'+(r.id===p.online.id?' me':'')+'"><div class="rk">'+(med[i]||(i+1))+'</div><div class="av">'+esc(r.av||'🙂')+'</div>'+
+        '<div class="nm">'+esc(r.name)+(isLive?' 🟢':'')+'<small>'+(r.games||0)+' o\'yin · '+(r.acc||0)+'% to\'g\'ri'+(r.stage?' · '+r.stage+'-bosqich':'')+(r.medal?' '+medalIc[r.medal]:'')+'</small></div><div class="pt">'+r.pts+'</div></div>';
+    });
+    h+='<button class="bigbtn red" id="optOut" style="width:100%;padding:10px;font-size:17px;margin-top:6px">🚪 Onlayn reytingdan chiqish (ota-ona)</button>';
+    lb.innerHTML=h;
+    $('#optOut').onclick=function(){
+      parentGate('Ota-ona tasdig\'i','Onlayn reytingdan chiqilsa, bu o\'yinchining ma\'lumotlari serverdan o\'chiriladi.',function(){
+        var q=cur(),id=q.online.id;q.online.on=false;save();
+        onFetch('/players/'+id+'.json',{method:'DELETE'}).catch(function(){});
+        renderOnline();
+      });
+    };
+  }).catch(function(){
+    if(scr!=='board'||bTab!=='online')return;
+    box.innerHTML='<div class="sec bad" style="text-align:center"><h3>📡 Internet yo\'q</h3><p style="margin:0 0 8px;font-size:16px">Ulanib bo\'lmadi. Internetni tekshirib, qayta urinib ko\'ring.</p><button class="bigbtn blue" id="retry" style="padding:10px 20px;font-size:18px">🔄 Qayta urinish</button></div>';
+    $('#retry').onclick=renderOnline;
+  });
 }
 
 /* ---------- toast ---------- */
@@ -957,85 +1076,14 @@ function toast(msg){
   setTimeout(function(){t.remove()},2800);
 }
 
-/* ---------- voice (ovoz bilan javob) ---------- */
-var UW={"bir":1,"ikki":2,"uch":3,"to'rt":4,"tort":4,"besh":5,"olti":6,"yetti":7,"sakkiz":8,"to'qqiz":9,"toqqiz":9,"o'n":10,"on":10,
-  "yigirma":20,"o'ttiz":30,"ottiz":30,"qirq":40,"ellik":50,"oltmish":60,"yetmish":70,"sakson":80,"to'qson":90,"toqson":90,
-  "один":1,"два":2,"три":3,"четыре":4,"пять":5,"шесть":6,"семь":7,"восемь":8,"девять":9,"десять":10,"двадцать":20,"тридцать":30,"сорок":40,
-  "пятьдесят":50,"шестьдесят":60,"семьдесят":70,"восемьдесят":80,"девяносто":90,
-  "one":1,"two":2,"three":3,"four":4,"five":5,"six":6,"seven":7,"eight":8,"nine":9,"ten":10,"twenty":20,"thirty":30,"forty":40,"fifty":50,
-  "sixty":60,"seventy":70,"eighty":80,"ninety":90};
-function parseNum(str){
-  var s=String(str).toLowerCase().replace(/[’‘ʻʼ`´]/g,"'");
-  var d=s.match(/\d+/g);
-  if(d){var v=parseInt(d.join(''),10);return isNaN(v)?null:v}
-  var toks=s.split(/[^a-zа-яё']+/),sum=0,hit=false;
-  toks.forEach(function(t){if(UW[t]!==undefined){sum+=UW[t];hit=true}});
-  return hit?sum:null;
-}
-function parseMatches(arr){
-  var out=[];(arr||[]).forEach(function(m){var v=parseNum(m);if(v!==null&&out.indexOf(v)<0)out.push(v)});
-  return out;
-}
-var Voice={busy:false,
-  cap:function(){return window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.SpeechRecognition},
-  web:function(){return window.SpeechRecognition||window.webkitSpeechRecognition},
-  ok:function(){return !!(this.cap()||this.web())},
-  listen:function(cb){
-    if(this.busy)return;
-    var self=this,done=false,cap=this.cap();
-    function fin(r){if(done)return;done=true;self.busy=false;cb(r)}
-    this.busy=true;
-    if(cap){
-      var go2=function(){
-        var langs=['uz-UZ','ru-RU'];
-        (function tryLang(i){
-          cap.start({language:langs[i],maxResults:5,partialResults:false,popup:false,prompt:'Javobni ayt'}).then(function(r){
-            fin({matches:(r&&r.matches)||[]});
-          }).catch(function(e){
-            var msg=String((e&&(e.message||e))||'');
-            if(i+1<langs.length&&/lang/i.test(msg))tryLang(i+1);else fin({matches:[],error:msg});
-          });
-        })(0);
-      };
-      Promise.resolve(cap.requestPermissions()).then(function(p){
-        if(p&&p.speechRecognition&&p.speechRecognition!=='granted'){fin({error:'perm'});return}
-        go2();
-      }).catch(function(){fin({error:'perm'})});
-      setTimeout(function(){try{cap.stop()}catch(e){}},7000);
-      setTimeout(function(){fin({matches:[]})},9500);
-    }else if(this.web()){
-      var R=new (this.web())();R.lang='uz-UZ';R.maxAlternatives=5;R.interimResults=false;
-      R.onresult=function(ev){var m=[];for(var i=0;i<ev.results[0].length;i++)m.push(ev.results[0][i].transcript);fin({matches:m})};
-      R.onerror=function(e){fin({matches:[],error:(e&&e.error)||'fail'})};
-      R.onend=function(){fin({matches:[]})};
-      try{R.start()}catch(e){fin({error:'fail'})}
-    }else fin({error:'na'});
-  }
-};
-/* mikrofon tugmasi uchun umumiy yordamchi: onNums(nums) chaqiriladi */
-function micFlow(btn,msgEl,onNums){
-  if(Voice.busy)return;
-  if(!Voice.ok()){toast('Bu qurilmada ovoz bilan javob berish ishlamaydi 🙂');return}
-  var old=btn.textContent;btn.classList.add('listening');btn.textContent='🎧 Eshitaman… ayt!';
-  if(msgEl)msgEl.textContent='';
-  Voice.listen(function(r){
-    btn.classList.remove('listening');btn.textContent=old;
-    if(r.error==='perm'){toast('Mikrofonga ruxsat bering 🎤');return}
-    var nums=parseMatches(r.matches);
-    if(!nums.length){if(msgEl)msgEl.textContent='Eshitmadim, yana ayt 🙂';return}
-    if(msgEl)msgEl.textContent='Eshitdim: '+nums[0];
-    onNums(nums);
-  });
-}
-
 /* ---------- chempionat ---------- */
 var CG=null;
-var STAGES=[
-  {id:1,name:'Saralash',ic:'🥉',max:4,q:8,sec:14,col:'green'},
-  {id:2,name:'Chorak final',ic:'🥈',max:6,q:10,sec:12,col:'blue'},
-  {id:3,name:'Yarim final',ic:'🥇',max:8,q:10,sec:10,col:'orange'},
-  {id:4,name:'Katta final',ic:'🏆',max:9,q:12,sec:9,col:'purple'}
-];
+var ST_NAMES=['Saralash','Birinchi tur','Ikkinchi tur','Uchinchi tur','To\'rtinchi tur','Beshinchi tur','Chorak final','Yarim final','Bronza uchun jang','Superfinal','Ulug\' final','Chempionlar finali'];
+var ST_ICONS=['🥉','🥈','🥇','⭐','🌟','💫','🔥','⚡','🚀','💎','👑','🏆'];
+var ST_SEC=[14,13,12,11,10,9,8,7.5,7,6.5,6,5];
+var ST_MAX=[4,5,6,7,8,9,9,9,9,9,9,9];
+var ST_Q=[8,8,10,10,10,10,12,12,12,12,12,12];
+var STAGES=ST_NAMES.map(function(n,i){return {id:i+1,name:n,ic:ST_ICONS[i],max:ST_MAX[i],q:ST_Q[i],sec:ST_SEC[i],col:['green','blue','orange','purple','teal','pink'][i%6]}});
 function chp(p){if(!p.champ)p.champ={st:{},medal:'',played:0};return p.champ}
 function stageScoreMax(s){return s.q*15}
 function openChamp(){
@@ -1043,7 +1091,7 @@ function openChamp(){
   var total=0,all=true;
   STAGES.forEach(function(s){var r=c.st[s.id];if(r&&r.passed)total+=r.best;else all=false});
   var medalTxt={gold:'🥇 Oltin kubok',silver:'🥈 Kumush kubok',bronze:'🥉 Bronza kubok'};
-  $('#chNote').innerHTML=c.medal?('Sizning kubogingiz: <b>'+medalTxt[c.medal]+'</b>'):'4 bosqichdan o\'ting va kubok yut! Javobni o\'zing yoz yoki ovoz bilan ayt.';
+  $('#chNote').innerHTML=c.medal?('Sizning kubogingiz: <b>'+medalTxt[c.medal]+'</b>'):STAGES.length+' bosqichdan o\'ting va kubok yut! Har bosqichda vaqt kamayib boradi. Javobni o\'zing yoz.';
   STAGES.forEach(function(s){
     var r=c.st[s.id],open=(s.id===1)||(c.st[s.id-1]&&c.st[s.id-1].passed);
     var state=!open?'🔒':(r&&r.passed?'✅ '+rep('⭐',r.stars||1):'▶');
@@ -1088,7 +1136,6 @@ function cNext(){
   $('#cInfo').textContent=CG.S.id+'-bosqich · Savol '+(CG.q+1)+' / '+CG.S.q;
   $('#cProg i').style.width=(CG.q/CG.S.q*100)+'%';
   $('#cScore').textContent='⭐ '+CG.score;
-  $('#cMsg').textContent='';
   cShow();
   CG.deadline=Date.now()+CG.S.sec*1000;
   if(CG.timer)clearInterval(CG.timer);
@@ -1096,7 +1143,6 @@ function cNext(){
 }
 function cTick(){
   if(!CG||CG.over||CG.locked)return;
-  if(Voice.busy)CG.deadline+=100;   /* tinglayotganda vaqt to'xtaydi */
   var left=CG.deadline-Date.now();
   $('#cTime i').style.width=Math.max(0,left/(CG.S.sec*1000)*100)+'%';
   $('#cTime').classList.toggle('low',left<3000);
@@ -1134,16 +1180,16 @@ function cFinish(){
   if(CG.score>r.best)r.best=CG.score;
   if(stars>r.stars)r.stars=stars;
   var medal='';
-  if(S.id===4&&pass){
+  if(S.id===STAGES.length&&pass){
     var tot=0;STAGES.forEach(function(s){var x=c.st[s.id];if(x)tot+=x.best});
-    var m=tot>=480?'gold':tot>=360?'silver':'bronze';
+    var mx=0;STAGES.forEach(function(s){mx+=s.q*15});var m=tot>=mx*.8?'gold':tot>=mx*.6?'silver':'bronze';
     var rank={bronze:1,silver:2,gold:3};
     if(!c.medal||rank[m]>rank[c.medal])c.medal=m;
     medal=m;
   }
   p.sessions.push({type:'champ',scope:'all',n:S.id,secs:0,date:Date.now(),correct:CG.correct,total:S.q,dur:Math.round((Date.now()-CG.t0)/1000),score:CG.score,best:CG.best});
   if(p.sessions.length>300)p.sessions.shift();
-  save();
+  save();onPush(p);
   resFrom='champ';
   var st='';for(var i=0;i<3;i++)st+=i<stars?'⭐':'☆';
   var h='<div class="stars">'+st+'</div>';
@@ -1151,9 +1197,9 @@ function cFinish(){
   else h+='<h2>'+(pass?'Bosqichdan o\'tdingiz! ✅':'Deyarli bo\'ldi! 💪')+'</h2>';
   h+='<div class="big">'+CG.correct+' / '+S.q+'</div><p>'+CG.score+' ball · eng uzun ketma-ket: '+CG.best+' 🔥</p>';
   if(!pass)h+='<p>Keyingi bosqichga o\'tish uchun kamida '+need+' ta to\'g\'ri javob kerak. Yana bir bor urinib ko\'ring!</p>';
-  if(pass&&S.id<4)h+='<p>'+(S.id+1)+'-bosqich ochildi! 🔓</p>';
-  var nextId=pass&&S.id<4?S.id+1:S.id;
-  h+='<button class="bigbtn green" id="rAgain">'+(pass&&S.id<4?'➡️ Keyingi bosqich':'🔁 Qayta o\'ynash')+'</button>'+
+  if(pass&&S.id<STAGES.length)h+='<p>'+(S.id+1)+'-bosqich ochildi! 🔓</p>';
+  var nextId=pass&&S.id<STAGES.length?S.id+1:S.id;
+  h+='<button class="bigbtn green" id="rAgain">'+(pass&&S.id<STAGES.length?'➡️ Keyingi bosqich':'🔁 Qayta o\'ynash')+'</button>'+
      '<button class="bigbtn purple" id="rSel">🏅 Chempionat</button><button class="bigbtn orange" id="rHome">🏠 Bosh sahifa</button>';
   $('#resBody').innerHTML=h;go('result');
   if(stars>=2||medal)confetti();
@@ -1173,14 +1219,6 @@ function cFinish(){
     else if(CG.input.length<2)CG.input+=k;
     cShow();
   }});
-  $('#cMic').onclick=function(){
-    if(!CG||CG.locked||CG.over)return;
-    micFlow($('#cMic'),$('#cMsg'),function(nums){
-      if(!CG||CG.locked||CG.over)return;
-      var right=CG.cur.a*CG.cur.b;
-      cAnswer(nums.indexOf(right)>=0?right:nums[0]);
-    });
-  };
 })();
 
 /* ---------- dam olish (ko'zlar uchun) ---------- */
@@ -1243,16 +1281,6 @@ function restTick(){
 }
 
 
-$('#micBtn').onclick=function(){
-  if(!G||G.locked||G.over)return;
-  micFlow($('#micBtn'),$('#micMsg'),function(nums){
-    if(!G||G.locked||G.over)return;
-    var right=G.cur.a*G.cur.b,v=nums.indexOf(right)>=0?right:nums[0],btn=null;
-    $$('#answers button').forEach(function(b){if(+b.getAttribute('data-v')===v)btn=b});
-    answer(btn,v);
-  });
-};
-
 /* ---------- Android back button ---------- */
 document.addEventListener('deviceready',function(){});
 try{
@@ -1273,7 +1301,7 @@ if(!cur()){
   else openNew(true);
 }
 setInterval(restTick,1000);restTick();
-window.__karra={DB:function(){return DB},go:go,REST:REST,restTick:restTick,Voice:Voice,parseNum:parseNum,TRACKS:TRACKS,Snd:Snd};
+window.__karra={DB:function(){return DB},go:go,REST:REST,restTick:restTick,TRACKS:TRACKS,Snd:Snd};
 })();
 </script>
 </body>

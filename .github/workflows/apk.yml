@@ -31,8 +31,7 @@ jobs:
           npx cap add android
           M=android/app/src/main/AndroidManifest.xml
           sed -i 's/<activity/<activity android:screenOrientation="portrait"/' $M
-          sed -i 's#<application#<uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <queries><intent><action android:name="android.speech.RecognitionService" /></intent></queries>\n    <application#' $M
-          grep -n "RECORD_AUDIO\|RecognitionService\|screenOrientation" $M
+          grep -n "screenOrientation" $M
           npx cap sync android
 
       - name: APK yig'ish
