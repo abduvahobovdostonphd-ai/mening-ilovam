@@ -1,12 +1,13 @@
 {
   "name": "karra-jadval",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "description": "Bolalar uchun karra jadvalni o'rgatuvchi o'yin",
   "dependencies": {
     "@capacitor/android": "^6.1.2",
     "@capacitor/app": "^6.0.1",
     "@capacitor/cli": "^6.1.2",
-    "@capacitor/core": "^6.1.2"
+    "@capacitor/core": "^6.1.2",
+    "@capacitor-community/speech-recognition": "^6.0.1"
   }
 }

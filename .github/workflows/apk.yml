@@ -29,7 +29,10 @@ jobs:
       - name: Android loyihasini yaratish
         run: |
           npx cap add android
-          sed -i 's/<activity/<activity android:screenOrientation="portrait"/' android/app/src/main/AndroidManifest.xml
+          M=android/app/src/main/AndroidManifest.xml
+          sed -i 's/<activity/<activity android:screenOrientation="portrait"/' $M
+          sed -i 's#<application#<uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <queries><intent><action android:name="android.speech.RecognitionService" /></intent></queries>\n    <application#' $M
+          grep -n "RECORD_AUDIO\|RecognitionService\|screenOrientation" $M
           npx cap sync android
 
       - name: APK yig'ish
