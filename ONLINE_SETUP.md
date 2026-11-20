@@ -1,19 +1,26 @@
-# Onlayn reytingni ulash (bir marta, ~5 daqiqa)
+# Onlayn reytingni ulash va himoyalash (Firebase)
 
-Ilova o'yinchilar ballarini bepul Firebase Realtime Database'da saqlaydi.
-Ilovani yuklagan hamma odam bir xil reytingni ko'radi, "hozir o'ynayotganlar" ham chiqadi.
+Ilova ballarni bepul Firebase Realtime Database'da saqlaydi. Himoya 3 qatlamdan iborat:
+1. **Anonim kirish**: faqat ilovaning o'zi ma'lumotni o'qiy oladi (tokensiz so'rovlar rad etiladi).
+2. **Faqat egasi yozadi**: har bir o'yinchi yozuvi qurilma identifikatori bilan boshlanadi, boshqa qurilma unga yoza ham, o'chira ham olmaydi.
+3. **Server tekshiruvi**: ball bir zumda sakrab ketolmaydi (vaqt o'tishi bilan cheklangan tezlikda o'sadi), noma'lum maydonlar va soxta vaqt rad etiladi.
 
-1. https://console.firebase.google.com ga Google akkaunt bilan kiring → **Add project** → nom: `karra-jadval` → Google Analytics ni o'chiring → **Create project**.
-2. Chap menyuda **Build → Realtime Database → Create Database**. Joylashuvni tanlang (istalgan), **Start in locked mode** → **Enable**.
-3. **Rules** bo'limiga o'ting, ichidagini o'chirib, `firebase-rules.json` faylining mazmunini joylang → **Publish**.
-4. **Data** bo'limining tepasidagi manzilni nusxalang. U shunga o'xshaydi:
-   `https://karra-jadval-default-rtdb.firebaseio.com` yoki `https://karra-jadval-default-rtdb.europe-west1.firebasedatabase.app`
-5. GitHub'da `www/config.js` faylini oching (qalamcha belgisi), `window.KARRA_DB_URL = "..."` ichiga manzilni qo'ying → **Commit changes**.
-   APK avtomatik qayta yig'iladi (Releases bo'limida yangi versiya chiqadi).
+## Sozlash (bir marta)
+1. **Anonim kirishni yoqing:** Firebase → **Build → Authentication → Get started → Sign-in method → Anonymous → Enable → Save**.
+2. **Web API Key ni oling:** ⚙️ **Project settings → General** sahifasida «Web API Key» yoziladi.
+   (Ko'rinmasa: shu sahifada pastda **Add app → Web (</>)** bosing, chiqqan `apiKey` qiymatini oling.)
+3. **GitHub'da `www/config.js` ni oching** (qalamcha) va `window.KARRA_API_KEY = "..."` ichiga kalitni qo'ying → **Commit changes**. APK avtomatik qayta yig'iladi.
+4. **Eski sinov ma'lumotlarini o'chiring:** Realtime Database → **Data** → `players` yonidagi ✖ → o'chirish.
+5. **Qoidalarni almashtiring (eng oxirida):** **Rules** bo'limiga `firebase-rules.json` mazmunini joylang → **Publish**.
+   Shundan so'ng ma'lumotlar bazasi ochiq emas: faqat anonim kirgan ilovalar ishlaydi.
+
+Tekshirish: Rules bo'limidagi **Rules Playground** da `/players` ni tokensiz o'qishga urinsangiz, «Denied» chiqishi kerak.
 
 ## Nimalar saqlanadi
 Faqat ota-ona ruxsat bergan o'yinchilar: ism (familiyasiz), rasm, ballar, o'yinlar soni, aniqlik foizi, chempionat bosqichi, oxirgi faollik vaqti.
-Yosh, familiya, joylashuv va qurilma ma'lumotlari yuborilmaydi. Ota-ona ilovadan chiqish tugmasi bilan ma'lumotni serverdan o'chira oladi.
+Yosh, familiya, joylashuv yuborilmaydi. Ota-ona ilovadagi «Onlayn reytingdan chiqish» tugmasi bilan ma'lumotni serverdan o'chiradi.
 
-## Cheklov
-Bu oddiy variant: akkauntsiz ishlaydi, shuning uchun texnik bilimli kishi soxta ball yuborishi mumkin. Bolalar o'yini uchun bu odatda yetarli.
+## Cheklovlar (halol)
+- Ball qurilmada hisoblanadi, shuning uchun texnik bilimli kishi sekin-asta (server ruxsat bergan tezlikda) soxta ball yig'ishi mumkin.
+  To'liq himoya uchun hisob-kitob serverda (Cloud Functions, pullik Blaze reja) va App Check bo'lishi kerak.
+- Kimdir ko'p anonim akkaunt ochib, ko'p soxta o'yinchi yaratishi mumkin. Buni Firebase konsolida kuzatib, kerak bo'lsa `players` dan qo'lda o'chirish mumkin.

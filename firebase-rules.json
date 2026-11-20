@@ -1,12 +1,22 @@
 {
   "rules": {
+    ".read": false,
+    ".write": false,
     "players": {
-      ".read": true,
+      ".read": "auth != null",
       ".indexOn": ["pts", "lastSeen"],
       "$id": {
-        ".write": true,
-        ".validate": "newData.hasChildren(['name','pts','lastSeen']) && newData.child('name').isString() && newData.child('name').val().length <= 16 && newData.child('pts').isNumber() && newData.child('pts').val() >= 0 && newData.child('pts').val() <= 1000000 && newData.child('lastSeen').isNumber() && $id.length <= 30",
-        "$other": { ".validate": true }
+        ".write": "auth != null && $id.beginsWith(auth.uid)",
+        ".validate": "newData.hasChildren(['name','pts','lastSeen']) && $id.length <= 48 && newData.child('lastSeen').val() == now && (!data.exists() ? newData.child('pts').val() <= 5000 : newData.child('pts').val() <= data.child('pts').val() + 400 + (now - data.child('lastSeen').val()) / 1000 * 8)",
+        "name":     { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 16" },
+        "av":       { ".validate": "newData.isString() && newData.val().length <= 8" },
+        "pts":      { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000" },
+        "games":    { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000" },
+        "acc":      { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100" },
+        "stage":    { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 12" },
+        "medal":    { ".validate": "newData.isString() && newData.val().length <= 6" },
+        "lastSeen": { ".validate": "newData.isNumber()" },
+        "$other":   { ".validate": false }
       }
     }
   }

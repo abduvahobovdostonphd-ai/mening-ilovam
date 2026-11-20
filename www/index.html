@@ -967,18 +967,58 @@ function renderLocal(){
   }).join('');
 }
 
-/* Onlayn qism: Firebase Realtime Database (REST). Manzil www/config.js da */
+/* ---------- onlayn: Firebase Realtime Database + anonim kirish (REST) ---------- */
 function onURL(){return String(window.KARRA_DB_URL||'').replace(/\/+$/,'')}
-function onReady(){return /^https:\/\/[^\s]+$/.test(onURL())||/^http:\/\/(localhost|127\.0\.0\.1)[:\/]/.test(onURL())}
-function onFetch(path,opt){
+function onLocalDev(){return /^http:\/\/(localhost|127\.0\.0\.1)[:\/]/.test(onURL())}
+function onReady(){
+  var u=onURL();
+  if(onLocalDev())return true;                       /* faqat sinov uchun */
+  return /^https:\/\/[^\s]+$/.test(u)&&String(window.KARRA_API_KEY||'').length>10;
+}
+var AUTH_BASE=window.KARRA_AUTH_BASE||'https://identitytoolkit.googleapis.com';
+var TOKEN_BASE=window.KARRA_TOKEN_BASE||'https://securetoken.googleapis.com';
+var Auth={uid:null,idToken:null,exp:0,refresh:null,pending:null};
+try{var _a=JSON.parse(localStorage.getItem('karra_auth'));if(_a&&_a.refresh){Auth.refresh=_a.refresh;Auth.uid=_a.uid}}catch(e){}
+function authSave(){try{localStorage.setItem('karra_auth',JSON.stringify({refresh:Auth.refresh,uid:Auth.uid}))}catch(e){}}
+function timedFetch(url,opt){
   var c=(typeof AbortController!=='undefined')?new AbortController():null,t=null;
   opt=opt||{};
   if(c){opt.signal=c.signal;t=setTimeout(function(){c.abort()},9000)}
-  return fetch(onURL()+path,opt).then(function(r){
-    if(t)clearTimeout(t);
-    if(!r.ok)throw new Error('http '+r.status);
-    return r.json();
-  },function(e){if(t)clearTimeout(t);throw e});
+  return fetch(url,opt).then(function(r){if(t)clearTimeout(t);return r},function(e){if(t)clearTimeout(t);throw e});
+}
+function authToken(force){
+  if(onLocalDev()&&!window.KARRA_API_KEY)return Promise.resolve(null);
+  if(!force&&Auth.idToken&&Date.now()<Auth.exp-60000)return Promise.resolve(Auth.idToken);
+  if(Auth.pending)return Auth.pending;
+  var key=encodeURIComponent(window.KARRA_API_KEY||''),p;
+  function take(r,j){
+    if(!r.ok)throw new Error('auth '+r.status);
+    Auth.idToken=j.idToken||j.id_token;Auth.refresh=j.refreshToken||j.refresh_token;Auth.uid=j.localId||j.user_id;
+    Auth.exp=Date.now()+(parseInt(j.expiresIn||j.expires_in,10)||3600)*1000;authSave();return Auth.idToken;
+  }
+  if(Auth.refresh){
+    p=timedFetch(TOKEN_BASE+'/v1/token?key='+key,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'grant_type=refresh_token&refresh_token='+encodeURIComponent(Auth.refresh)})
+      .then(function(r){return r.json().then(function(j){return take(r,j)})})
+      .catch(function(){Auth.refresh=null;Auth.idToken=null;return signUp()});
+  }else p=signUp();
+  function signUp(){
+    return timedFetch(AUTH_BASE+'/v1/accounts:signUp?key='+key,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({returnSecureToken:true})})
+      .then(function(r){return r.json().then(function(j){return take(r,j)})});
+  }
+  Auth.pending=p;
+  p.then(function(){Auth.pending=null},function(){Auth.pending=null});
+  return p;
+}
+function onFetch(path,opt,retried){
+  opt=opt||{};
+  return authToken(!!retried).then(function(tok){
+    var url=onURL()+path+(tok?(path.indexOf('?')>=0?'&':'?')+'auth='+encodeURIComponent(tok):'');
+    return timedFetch(url,{method:opt.method||'GET',headers:opt.headers,body:opt.body}).then(function(r){
+      if(r.status===401&&!retried&&tok)return onFetch(path,opt,true);
+      if(!r.ok)throw new Error('http '+r.status);
+      return r.json();
+    });
+  });
 }
 function myRecord(p){
   var pts=0,games=0,C=0,W=0,stage=0;
@@ -987,17 +1027,32 @@ function myRecord(p){
   var c=p.champ;
   if(c)STAGES.forEach(function(s){if(c.st[s.id]&&c.st[s.id].passed&&s.id>stage)stage=s.id});
   /* faqat ism, rasm va ballar yuboriladi: yosh, familiya, joylashuv yuborilmaydi */
-  return {name:String(p.name).slice(0,16),av:p.avatar,pts:pts,games:games,acc:(C+W)?Math.round(C/(C+W)*100):0,stage:stage,medal:(c&&c.medal)||'',lastSeen:Date.now()};
+  var r={name:String(p.name).slice(0,16),av:String(p.avatar).slice(0,8),pts:pts,games:games,acc:(C+W)?Math.round(C/(C+W)*100):0,stage:stage,lastSeen:{'.sv':'timestamp'}};
+  if(c&&c.medal)r.medal=c.medal;
+  return r;
 }
-function onPush(p){
-  if(!onReady()||!p||!p.online||!p.online.on)return;
-  onFetch('/players/'+p.online.id+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(myRecord(p))}).catch(function(){});
+/* Har bir yozuv identifikatori egasining uid si bilan boshlanadi: boshqa qurilma unga yoza olmaydi */
+function ensureOnId(p){
+  if(!Auth.uid)return false;
+  if(!p.online)p.online={on:true,id:''};
+  if(!p.online.id||p.online.id.indexOf(Auth.uid)!==0){
+    var s='';for(var i=0;i<5;i++)s+=Math.floor(Math.random()*36).toString(36);
+    p.online.id=Auth.uid+'_'+s;save();
+  }
+  return true;
 }
+function onPushRaw(p){
+  if(!onReady()||!p||!p.online||!p.online.on)return Promise.resolve(null);
+  return authToken().then(function(){
+    if(!ensureOnId(p))throw new Error('auth');
+    return onFetch('/players/'+p.online.id+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(myRecord(p))});
+  });
+}
+function onPush(p){return onPushRaw(p).catch(function(){return null})}
 setInterval(function(){   /* "hozir o'ynayapti" belgisi: har daqiqada */
   var p=cur();
   if(p&&p.online&&p.online.on&&!document.hidden&&!lockOn())onPush(p);
 },60000);
-function newOnId(){var s='k';for(var i=0;i<14;i++)s+=Math.floor(Math.random()*36).toString(36);return s+Date.now().toString(36)}
 function parentGate(title,text,okFn){
   var a=11+rnd(9),b=12+rnd(8);
   var box=$('#modalBox');modalRequired=false;
@@ -1019,7 +1074,7 @@ function optInCard(){
   $('#lbBody').innerHTML='';
   $('#optBtn').onclick=function(){
     parentGate('Ota-ona tasdig\'i','«'+esc(cur().name)+'» ismi, rasmi va ballari onlayn reytingda ko\'rinishiga rozimisiz?',function(){
-      var p=cur();p.online={on:true,id:p.online&&p.online.id?p.online.id:newOnId()};save();onPush(p);renderOnline();
+      var p=cur();p.online={on:true,id:(p.online&&p.online.id)||''};save();renderOnline();
     });
   };
 }
@@ -1032,14 +1087,15 @@ function renderOnline(){
   }
   if(!p.online||!p.online.on){optInCard();return}
   box.innerHTML='<p class="note">⏳ Yuklanmoqda…</p>';
-  onPush(p);
-  var since=Date.now()-3*60*1000;
-  Promise.all([
-    onFetch('/players.json?orderBy=%22pts%22&limitToLast=50'),
-    onFetch('/players.json?orderBy=%22lastSeen%22&startAt='+since+'&limitToLast=100')
-  ]).then(function(res){
+  onPushRaw(p).catch(function(e){if(/auth/.test(String(e&&e.message)))throw e;return null}).then(function(rec){
+    var now=(rec&&typeof rec.lastSeen==='number')?rec.lastSeen:Date.now(),since=now-3*60*1000;
+    return Promise.all([
+      onFetch('/players.json?orderBy=%22pts%22&limitToLast=50'),
+      onFetch('/players.json?orderBy=%22lastSeen%22&startAt='+since+'&limitToLast=100')
+    ]).then(function(res){return {res:res,since:since}});
+  }).then(function(o){
     if(scr!=='board'||bTab!=='online')return;
-    var all=res[0]||{},live=res[1]||{};
+    var res=o.res,since=o.since,all=res[0]||{},live=res[1]||{};
     var arr=Object.keys(all).map(function(id){var r=all[id];r.id=id;return r}).filter(function(r){return r&&typeof r.pts==='number'})
       .sort(function(a,b){return b.pts-a.pts});
     var liveArr=Object.keys(live).map(function(id){return live[id]}).filter(function(r){return r&&r.name});
@@ -1059,13 +1115,13 @@ function renderOnline(){
     $('#optOut').onclick=function(){
       parentGate('Ota-ona tasdig\'i','Onlayn reytingdan chiqilsa, bu o\'yinchining ma\'lumotlari serverdan o\'chiriladi.',function(){
         var q=cur(),id=q.online.id;q.online.on=false;save();
-        onFetch('/players/'+id+'.json',{method:'DELETE'}).catch(function(){});
+        if(id)onFetch('/players/'+id+'.json',{method:'DELETE'}).catch(function(){});
         renderOnline();
       });
     };
   }).catch(function(e){
     if(scr!=='board'||bTab!=='online')return;
-    var m=String((e&&e.message)||e),why=/http 40[13]/.test(m)?'Server qoidalari (Rules) to\'g\'ri joylanmagan yoki e\'lon qilinmagan.':/http 400/.test(m)?'Server indekslari yo\'q: qoidalarda «.indexOn» bo\'lishi kerak.':/http 404/.test(m)?'Ma\'lumotlar bazasi manzili noto\'g\'ri.':'Internetni tekshirib, qayta urinib ko\'ring.';
+    var m=String((e&&e.message)||e),why=/auth 400|auth 403/.test(m)?'Anonim kirish yoqilmagan yoki API kalit noto\'g\'ri (Firebase → Authentication → Anonymous).':/http 40[13]/.test(m)?'Server qoidalari (Rules) to\'g\'ri joylanmagan yoki e\'lon qilinmagan.':/http 400/.test(m)?'Server indekslari yo\'q: qoidalarda «.indexOn» bo\'lishi kerak.':/http 404/.test(m)?'Ma\'lumotlar bazasi manzili noto\'g\'ri.':'Internetni tekshirib, qayta urinib ko\'ring.';
     box.innerHTML='<div class="sec bad" style="text-align:center"><h3>📡 Ulanib bo\'lmadi</h3><p style="margin:0 0 8px;font-size:16px">'+why+'</p><p style="margin:0 0 8px;font-size:12px;opacity:.6">'+esc(m)+'</p><button class="bigbtn blue" id="retry" style="padding:10px 20px;font-size:18px">🔄 Qayta urinish</button></div>';
     $('#retry').onclick=renderOnline;
   });
@@ -1302,7 +1358,7 @@ if(!cur()){
   else openNew(true);
 }
 setInterval(restTick,1000);restTick();
-window.__karra={DB:function(){return DB},go:go,REST:REST,restTick:restTick,TRACKS:TRACKS,Snd:Snd};
+window.__karra={DB:function(){return DB},go:go,REST:REST,restTick:restTick,TRACKS:TRACKS,Snd:Snd,Auth:Auth,onFetch:onFetch};
 })();
 </script>
 </body>
