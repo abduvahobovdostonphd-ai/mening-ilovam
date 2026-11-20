@@ -1063,9 +1063,10 @@ function renderOnline(){
         renderOnline();
       });
     };
-  }).catch(function(){
+  }).catch(function(e){
     if(scr!=='board'||bTab!=='online')return;
-    box.innerHTML='<div class="sec bad" style="text-align:center"><h3>📡 Internet yo\'q</h3><p style="margin:0 0 8px;font-size:16px">Ulanib bo\'lmadi. Internetni tekshirib, qayta urinib ko\'ring.</p><button class="bigbtn blue" id="retry" style="padding:10px 20px;font-size:18px">🔄 Qayta urinish</button></div>';
+    var m=String((e&&e.message)||e),why=/http 40[13]/.test(m)?'Server qoidalari (Rules) to\'g\'ri joylanmagan yoki e\'lon qilinmagan.':/http 400/.test(m)?'Server indekslari yo\'q: qoidalarda «.indexOn» bo\'lishi kerak.':/http 404/.test(m)?'Ma\'lumotlar bazasi manzili noto\'g\'ri.':'Internetni tekshirib, qayta urinib ko\'ring.';
+    box.innerHTML='<div class="sec bad" style="text-align:center"><h3>📡 Ulanib bo\'lmadi</h3><p style="margin:0 0 8px;font-size:16px">'+why+'</p><p style="margin:0 0 8px;font-size:12px;opacity:.6">'+esc(m)+'</p><button class="bigbtn blue" id="retry" style="padding:10px 20px;font-size:18px">🔄 Qayta urinish</button></div>';
     $('#retry').onclick=renderOnline;
   });
 }
