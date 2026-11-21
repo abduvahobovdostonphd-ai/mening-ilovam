@@ -737,6 +737,34 @@ function renderSelect(){
 }
 $$('#seg button').forEach(function(b){b.addEventListener('click',function(){cfgSel.scope=b.getAttribute('data-v');renderSelect()})});
 
+/* ---------- doimiy jami hisoblar (eski o'yinlar o'chsa ham ballar kamaymaydi) ---------- */
+var MAX_SESSIONS=500;
+function getTot(p){
+  if(!p.totals){
+    var t={pts:0,games:0,best:0,bc:0};
+    p.sessions.forEach(function(x){if(x.type==='contest'||x.type==='champ'){t.pts+=x.score;t.games++;if(x.score>t.best)t.best=x.score;if(x.type==='contest'&&x.score>t.bc)t.bc=x.score}});
+    p.totals=t;
+  }
+  return p.totals;
+}
+function life(p){
+  if(!p.life){
+    var L={learn:0,practice:0,contest:0,champ:0,secs:0};
+    p.sessions.forEach(function(x){if(L[x.type]!==undefined)L[x.type]++;L.secs+=x.dur||0});
+    p.life=L;
+  }
+  return p.life;
+}
+function sessAdd(p,x){
+  getTot(p);life(p);                       /* avval eski o'yinlardan hisoblab olinadi */
+  p.sessions.push(x);
+  while(p.sessions.length>MAX_SESSIONS)p.sessions.shift();
+  var L=p.life;if(L[x.type]!==undefined)L[x.type]++;L.secs+=x.dur||0;
+  if(x.type==='contest'||x.type==='champ'){
+    var T=p.totals;T.pts+=x.score;T.games++;if(x.score>T.best)T.best=x.score;if(x.type==='contest'&&x.score>T.bc)T.bc=x.score;
+  }
+}
+
 /* ---------- game ---------- */
 function endTimers(){if(typeof CG!=='undefined'&&CG){if(CG.timer){clearInterval(CG.timer);CG.timer=null}if(CG.nt){clearTimeout(CG.nt);CG.nt=null}}if(G&&G.timer){clearInterval(G.timer);G.timer=null}if(G&&G.nt){clearTimeout(G.nt);G.nt=null}}
 function startGame(cfg){
@@ -835,7 +863,7 @@ function finish(){
   var p=cur(),total=G.correct+G.wrong;
   var s={type:G.mode,scope:G.scope,n:G.n,secs:G.mode==='contest'?G.secs:0,date:Date.now(),
          correct:G.correct,total:total,dur:Math.round((Date.now()-G.t0)/1000),score:G.mode==='contest'?G.correct*10:0,best:G.best};
-  p.sessions.push(s);if(p.sessions.length>300)p.sessions.shift();
+  sessAdd(p,s);
   if(G.mode==='learn'){
     var L=p.learn[G.n]||(p.learn[G.n]={sessions:0,best:0});
     L.sessions++;if(G.correct>L.best)L.best=G.correct;
@@ -880,15 +908,12 @@ function showResult(s){
 function pctOf(o){var t=o.c+o.w;return t?Math.round(o.c/t*100):0}
 function openAnalysis(){
   var p=cur();if(!p)return;
-  var S=p.sessions,learnS=S.filter(function(s){return s.type==='learn'}).length,
-      prS=S.filter(function(s){return s.type==='practice'}).length,
-      coS=S.filter(function(s){return s.type==='contest'}).length,
-      chS=S.filter(function(s){return s.type==='champ'}).length;
+  var S=p.sessions,L=life(p),learnS=L.learn,prS=L.practice,coS=L.contest,chS=L.champ;
   var C=0,W=0,keys=Object.keys(p.facts);
   keys.forEach(function(k){C+=p.facts[k].c;W+=p.facts[k].w});
   var tot=C+W,acc=tot?Math.round(C/tot*100):0;
   var learned=[];for(var n=2;n<=9;n++){if(p.learn[n]&&p.learn[n].best>=8)learned.push(n)}
-  var secs=S.reduce(function(a,s){return a+s.dur},0);
+  var secs=L.secs;
   var h='<div class="sec" style="text-align:center"><div style="font-size:46px">'+p.avatar+'</div><div style="font-size:24px">'+esc(p.name)+'</div><div style="font-size:16px;opacity:.75">'+p.age+' yosh · hisobot ota-onalar uchun</div></div>';
   h+='<div class="stat3"><div class="stat"><b>'+tot+'</b><span>jami javob</span></div><div class="stat"><b>'+acc+'%</b><span>to\'g\'ri</span></div><div class="stat"><b>'+Math.round(secs/60)+'</b><span>daqiqa o\'ynadi</span></div></div>';
   h+='<div class="stat4"><div class="stat"><b>'+learnS+'</b><span>o\'rganish</span></div><div class="stat"><b>'+prS+'</b><span>mashq</span></div><div class="stat"><b>'+coS+'</b><span>musobaqa</span></div><div class="stat"><b>'+chS+'</b><span>chempionat</span></div></div>';
@@ -910,7 +935,7 @@ function openAnalysis(){
   for(var t2=2;t2<=9;t2++){var o2=p.tables[t2];if(o2&&o2.c+o2.w>=5){if(pctOf(o2)>=85)strongT.push(t2);else if(pctOf(o2)<70)weakT.push(t2)}}
   if(strongT.length)good.push('Yaxshi biladigan jadvallari: <b>'+strongT.join(', ')+'</b>');
   if((p.bestStreak||0)>=3)good.push('Eng uzun ketma-ket to\'g\'ri javob: <b>'+p.bestStreak+'</b> ta');
-  var bestC=0;S.forEach(function(s){if(s.type==='contest'&&s.score>bestC)bestC=s.score});
+  var bestC=getTot(p).bc;
   if(bestC)good.push('Musobaqadagi eng yaxshi natija: <b>'+bestC+'</b> ball');
   if(acc>=85)good.push('Umumiy aniqlik yuqori: <b>'+acc+'%</b>');
   if(p.champ&&p.champ.medal)good.push('Chempionat kubogi: <b>'+({gold:'🥇 oltin',silver:'🥈 kumush',bronze:'🥉 bronza'})[p.champ.medal]+'</b>');
@@ -944,7 +969,7 @@ function openAnalysis(){
 function boardData(){
   return DB.profiles.map(function(p){
     var pts=0,best=0,cnt=0;
-    p.sessions.forEach(function(s){if(s.type==='contest'||s.type==='champ'){pts+=s.score;cnt++;if(s.score>best)best=s.score}});
+    var T=getTot(p);pts=T.pts;cnt=T.games;best=T.best;
     return {p:p,pts:pts,best:best,cnt:cnt};
   }).filter(function(x){return x.cnt>0}).sort(function(a,b){return b.pts-a.pts||b.best-a.best});
 }
@@ -1022,7 +1047,7 @@ function onFetch(path,opt,retried){
 }
 function myRecord(p){
   var pts=0,games=0,C=0,W=0,stage=0;
-  p.sessions.forEach(function(s){if(s.type==='contest'||s.type==='champ'){pts+=s.score;games++}});
+  var T=getTot(p);pts=T.pts;games=T.games;
   Object.keys(p.facts).forEach(function(k){C+=p.facts[k].c;W+=p.facts[k].w});
   var c=p.champ;
   if(c)STAGES.forEach(function(s){if(c.st[s.id]&&c.st[s.id].passed&&s.id>stage)stage=s.id});
@@ -1244,8 +1269,7 @@ function cFinish(){
     if(!c.medal||rank[m]>rank[c.medal])c.medal=m;
     medal=m;
   }
-  p.sessions.push({type:'champ',scope:'all',n:S.id,secs:0,date:Date.now(),correct:CG.correct,total:S.q,dur:Math.round((Date.now()-CG.t0)/1000),score:CG.score,best:CG.best});
-  if(p.sessions.length>300)p.sessions.shift();
+  sessAdd(p,{type:'champ',scope:'all',n:S.id,secs:0,date:Date.now(),correct:CG.correct,total:S.q,dur:Math.round((Date.now()-CG.t0)/1000),score:CG.score,best:CG.best});
   save();onPush(p);
   resFrom='champ';
   var st='';for(var i=0;i<3;i++)st+=i<stars?'⭐':'☆';
